@@ -1,58 +1,89 @@
 #include <bits/stdc++.h>
 
 using namespace std;
-#define rep(i, a, b) for(int i = a; i < (b); ++i)
-#define all(x) begin(x), end(x)
-#define sz(x) (int)(x).size()
 typedef long long ll;
-typedef vector<ll> vi;
 #define INF 1e12
 
-struct PushRelabel {
-	struct Edge {
-		int dest, back;
-		ll f, c;
-	};
-	vector<vector<Edge>> g;
-	vector<ll> ec;
-	vector<Edge*> cur;
-	vector<vi> hs; vi H;
-	PushRelabel(int n) : g(n), ec(n), cur(n), hs(2 * n), H(n) {}
-	void addEdge(int s, int t, ll cap, ll rcap = 0) {
-		if (s == t) return;
-		g[s].push_back({ t, sz(g[t]), 0, cap });
-		g[t].push_back({ s, sz(g[s]) - 1, 0, rcap });
-	}
-	void addFlow(Edge& e, ll f) {
-		Edge& back = g[e.dest][e.back];
-		if (!ec[e.dest] && f) hs[H[e.dest]].push_back(e.dest);
-		e.f += f; e.c -= f; ec[e.dest] += f;
-		back.f -= f; back.c += f; ec[back.dest] -= f;
-	}
-	ll calc(int s, int t) {
-		int v = sz(g); H[s] = v; ec[t] = 1;
-		vi co(2 * v); co[0] = v - 1;
-		rep(i, 0, v) cur[i] = g[i].data();
-		for (Edge& e : g[s]) addFlow(e, e.c);
-		for (int hi = 0;;) {
-			while (hs[hi].empty()) if (!hi--) return -ec[s];
-			int u = hs[hi].back(); hs[hi].pop_back();
-			while (ec[u] > 0) // discharge u
-				if (cur[u] == g[u].data() + sz(g[u])) {
-					H[u] = 1e9;
-					for (Edge& e : g[u]) if (e.c && H[u] > H[e.dest] + 1)
-						H[u] = H[e.dest] + 1, cur[u] = &e;
-					if (++co[H[u]], !--co[hi] && hi < v)
-						rep(i, 0, v) if (hi < H[i] && H[i] < v)
-						--co[H[i]], H[i] = v + 1;
-					hi = H[u];
-				}
-				else if (cur[u]->c && H[u] == H[cur[u]->dest] + 1)
-					addFlow(*cur[u], min(ec[u], cur[u]->c));
-				else ++cur[u];
-		}
-	}
-	bool leftOfMinCut(int a) { return H[a] >= sz(g); }
+struct FlowEdge {
+    int v, u;
+    long long cap, flow = 0;
+    FlowEdge(int v, int u, long long cap) : v(v), u(u), cap(cap) {}
+};
+
+struct Dinic {
+    const long long flow_inf = 1e18;
+    vector<FlowEdge> edges;
+    vector<vector<int>> adj;
+    int n, m = 0;
+    int s, t;
+    vector<int> level, ptr;
+    queue<int> q;
+
+    Dinic(int n, int s, int t) : n(n), s(s), t(t) {
+        adj.resize(n);
+        level.resize(n);
+        ptr.resize(n);
+    }
+
+    void add_edge(int v, int u, long long cap) {
+        edges.emplace_back(v, u, cap);
+        edges.emplace_back(u, v, 0);
+        adj[v].push_back(m);
+        adj[u].push_back(m + 1);
+        m += 2;
+    }
+
+    bool bfs() {
+        while (!q.empty()) {
+            int v = q.front();
+            q.pop();
+            for (int id : adj[v]) {
+                if (edges[id].cap - edges[id].flow < 1)
+                    continue;
+                if (level[edges[id].u] != -1)
+                    continue;
+                level[edges[id].u] = level[v] + 1;
+                q.push(edges[id].u);
+            }
+        }
+        return level[t] != -1;
+    }
+
+    long long dfs(int v, long long pushed) {
+        if (pushed == 0)
+            return 0;
+        if (v == t)
+            return pushed;
+        for (int& cid = ptr[v]; cid < (int)adj[v].size(); cid++) {
+            int id = adj[v][cid];
+            int u = edges[id].u;
+            if (level[v] + 1 != level[u] || edges[id].cap - edges[id].flow < 1)
+                continue;
+            long long tr = dfs(u, min(pushed, edges[id].cap - edges[id].flow));
+            if (tr == 0)
+                continue;
+            edges[id].flow += tr;
+            edges[id ^ 1].flow -= tr;
+            return tr;
+        }
+        return 0;
+    }
+
+    long long flow() {
+        long long f = 0;
+        while (true) {
+            fill(level.begin(), level.end(), -1);
+            level[s] = 0;
+            q.push(s);
+            if (!bfs())
+                break;
+            fill(ptr.begin(), ptr.end(), 0);
+            while (long long pushed = dfs(s, flow_inf)) {
+                f += pushed;
+            }
+        }
+        return f;
+    }
 };
 
 int r, c;
@@ -72,22 +103,23 @@ int main() {
 	int cr, cc, dx, dy;
 	ll sold;
 	cin >> r >> c;
-	PushRelabel pr(2*r*c + 1);
+	Dinic mf(2*r*c + 1, 2*r*c, 0);
 	for (int i = 0; i < r; ++i) {
 		for (int j = 0; j < c; ++j) {
 			cin >> sold;
-			pr.addEdge(in(i, j), out(i, j), sold);
+			mf.add_edge(in(i, j), out(i, j), sold);
 			for (int d = 0; d < 4; ++d) {
 				dx = i + vx[d];
 				dy = j + vy[d];
-				if (dx >= 0 && dx < r && dy >= 0 && dy < c) pr.addEdge(out(i, j), in(dx, dy), INF);
+				if (dx >= 0 && dx < r && dy >= 0 && dy < c) mf.add_edge(out(i, j), in(dx, dy), INF);
 			}
 
-			if (i == 0 || j == 0 || i == r || j == c) pr.addEdge(2 * r * c, in(i, j), INF);
+			if (i == 0 || j == 0 || i == r-1 || j == c-1) mf.add_edge(2 * r * c, in(i, j), INF);
 		}
 	}
 
 	cin >> cr >> cc;
-	cout << pr.calc(2 * r * c, out(cr,cc)) << '\n';
+    mf.t = out(cr, cc);
+	cout << mf.flow() << '\n';
 	return 0;
 }
