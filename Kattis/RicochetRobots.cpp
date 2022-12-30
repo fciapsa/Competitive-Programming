@@ -1,112 +1,71 @@
-#include <iostream>
-#include <vector>
-#include <string>
+#include <bits/stdc++.h>
 #include <unordered_map>
 
-#define ll long long
 using namespace std;
+#define ll long long
+#define um unordered_map
+#define INF 11
+
+int n, w, h, l, ans = INF;
+vector<string> mat;
+um<int, um<int, um<int, um<int, um<int,int>>>>> state;
 
 struct pos {
     int x, y;
+    int posn() const {
+        return x * w + y;
+    }
+    bool operator==(pos const& o) const {
+        return x == o.x && y == o.y;
+    }
+    bool operator!=(pos const& o) const {
+        return !(*this == o);
+    }
 };
 
-unordered_map<int, unordered_map<int, unordered_map<int, unordered_map<int, unordered_map<int,int>>>>> mp;
-int n, c, f, l;
-pos goal;
+vector<pos> robs = { {0,0}, {0,0}, {0,0}, {0,0} };
+pos dest;
 
-void ramifica(int step, vector<vector<char>>& mat, vector<pos>& rbs, int& sol) {
-    vector<int> posr(4,0);
-    posr[0] = rbs[0].y + rbs[0].x * c;
-    if(n > 1) posr[1] = rbs[1].y + rbs[1].x * c;
-    if(n > 2) posr[2] = rbs[2].y + rbs[2].x * c;
-    if(n > 3) posr[3] = rbs[3].y + rbs[3].x * c;
-    
-    ++mp[posr[0]][posr[1]][posr[2]][posr[3]][step];
+bool in(int x, int y) {
+    return x >= 0 && y >= 0 && x < h && y < w;
+}
 
-    if (rbs[0].x == goal.x && rbs[0].y == goal.y) {
-        if (step < sol) sol = step;
-    }
-    else if (step < l) {
-        pos start, dest;
-        for (int i = 0; i < n; ++i) {
-            start.x = rbs[i].x;
-            start.y = rbs[i].y;
+bool open(char c) {
+    return c == '.' || c == 'X';
+}
 
-            //hacia arriba
-            dest.x = start.x;
-            dest.y = start.y;
-            while (dest.x > 0 && mat[dest.x - 1][dest.y] == '.') --dest.x;
-            if (dest.x != start.x) {
-                rbs[i].x = dest.x;
-                rbs[i].y = dest.y;
-                posr[i] = dest.y + dest.x * c;
-                mat[dest.x][dest.y] = char(int('0') + i + 1);
-                mat[start.x][start.y] = '.';
+vector<int> vx = { -1,0,1,0 };
+vector<int> vy = { 0,1,0,-1 };
 
-                if (mp[posr[0]][posr[1]][posr[2]][posr[3]][step+1] == 0) ramifica(step + 1, mat, rbs, sol);
+void bt(int move) {
+    if (move == ans) return;
 
-                rbs[i].x = start.x;
-                rbs[i].y = start.y;
-                posr[i] = start.y + start.x * c;
-                mat[start.x][start.y] = char(int('0') + i + 1);
-                mat[dest.x][dest.y] = '.';
+    for (int i = 0; i < n; ++i) {
+        pos ini = robs[i];
+        for (int k = 0; k < 4; ++k) {
+            pos temp = ini;
+            pos next = { temp.x + vx[k], temp.y + vy[k] };
+            while (in(next.x, next.y) && open(mat[next.x][next.y])) {
+                temp = next;
+                next.x += vx[k];
+                next.y += vy[k];
             }
 
-            //hacia abajo
-            dest.x = start.x;
-            dest.y = start.y;
-            while (dest.x < f-1 && mat[dest.x + 1][dest.y] == '.') ++dest.x;
-            if (dest.x != start.x) {
-                rbs[i].x = dest.x;
-                rbs[i].y = dest.y;
-                posr[i] = dest.y + dest.x * c;
-                mat[dest.x][dest.y] = char(int('0') + i + 1);
-                mat[start.x][start.y] = '.';
-
-                if (mp[posr[0]][posr[1]][posr[2]][posr[3]][step+1] == 0) ramifica(step + 1, mat, rbs, sol);
-                rbs[i].x = start.x;
-                rbs[i].y = start.y;
-                posr[i] = start.y + start.x * c;
-                mat[start.x][start.y] = char(int('0') + i + 1);
-                mat[dest.x][dest.y] = '.';
-            }
-
-            //izquierda
-            dest.x = start.x;
-            dest.y = start.y;
-            while (dest.y > 0 && mat[dest.x][dest.y - 1] == '.') --dest.y;
-            if (dest.y != start.y) {
-                rbs[i].x = dest.x;
-                rbs[i].y = dest.y;
-                posr[i] = dest.y + dest.x * c;
-                mat[dest.x][dest.y] = char(int('0') + i + 1);
-                mat[start.x][start.y] = '.';
-
-                if (mp[posr[0]][posr[1]][posr[2]][posr[3]][step+1] == 0) ramifica(step + 1, mat, rbs, sol);
-                rbs[i].x = start.x;
-                rbs[i].y = start.y;
-                posr[i] = start.y + start.x * c;
-                mat[start.x][start.y] = char(int('0') + i + 1);
-                mat[dest.x][dest.y] = '.';
-            }
-
-            //derecha
-            dest.x = start.x;
-            dest.y = start.y;
-            while (dest.y < c-1 && mat[dest.x][dest.y + 1] == '.') ++dest.y;
-            if (dest.y != start.y) {
-                rbs[i].x = dest.x;
-                rbs[i].y = dest.y;
-                posr[i] = dest.y + dest.x * c;
-                mat[dest.x][dest.y] = char(int('0') + i + 1);
-                mat[start.x][start.y] = '.';
-
-                if (mp[posr[0]][posr[1]][posr[2]][posr[3]][step + 1] == 0) ramifica(step + 1, mat, rbs, sol);
-                rbs[i].x = start.x;
-                rbs[i].y = start.y;
-                posr[i] = start.y + start.x * c;
-                mat[start.x][start.y] = char(int('0') + i + 1);
-                mat[dest.x][dest.y] = '.';
+            if (temp != ini) {
+                if (i == 0 && temp == dest) {
+                    ans = move;
+                    return;
+                }
+                robs[i] = temp;
+                if (state[move][robs[0].posn()][robs[1].posn()][robs[2].posn()][robs[3].posn()] == 0) {
+                    state[move][robs[0].posn()][robs[1].posn()][robs[2].posn()][robs[3].posn()] = 1;
+                    mat[ini.x][ini.y] = '.';
+                    mat[temp.x][temp.y] = char('1' + i);
+                    bt(move + 1);
+                    mat[ini.x][ini.y] = char('1' + i);
+                    mat[temp.x][temp.y] = '.';
+                }
+                robs[i] = ini;
             }
         }
     }
@@ -114,27 +73,26 @@ void ramifica(int step, vector<vector<char>>& mat, vector<pos>& rbs, int& sol) {
 
 int main() {
     std::ios::sync_with_stdio(false);
+    cin >> n >> w >> h >> l;
+    mat.assign(h, "");
+    for (int i = 0; i < h; ++i) cin >> mat[i];
 
-    cin >> n >> c >> f >> l;
-    vector<vector<char>> mat(f, vector<char>(c));
-    vector<pos> rbs(n);
-    for (int i = 0; i < f; ++i) {
-        for (int j = 0; j < c; ++j) {
-            cin >> mat[i][j];
-            if (mat[i][j] == '1' || mat[i][j] == '2' || mat[i][j] == '3' || mat[i][j] == '4')
-                rbs[int(mat[i][j]) - int('0') - 1] = { i,j };
-
-            if (mat[i][j] == 'X') {
-                goal = { i,j };
-                mat[i][j] = '.';
+    for(int i = 0; i < h; ++i){
+        for (int j = 0; j < w; ++j) {
+            switch (mat[i][j]) {
+            case 'X': dest = { i,j }; break;
+            case '1': robs[0] = { i,j }; break;
+            case '2': robs[1] = { i,j }; break;
+            case '3': robs[2] = { i,j }; break;
+            case '4': robs[3] = { i,j }; break;
             }
         }
     }
 
-    int sol = l + 1;
-    ramifica(0, mat, rbs, sol);
-    if (sol <= l) cout << sol << '\n';
-    else cout << "NO SOLUTION\n";
+    bt(1);
 
-return 0;
+    if (ans == INF) cout << "NO SOLUTION\n";
+    else cout << ans << '\n';
+
+    return 0;
 }
